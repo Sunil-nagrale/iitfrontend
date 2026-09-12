@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5002/api";
+const API_URL = "https://iitfrontend-1.onrender.com/api";
 
 const request = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
