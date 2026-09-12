@@ -1,13 +1,20 @@
+// import React, { useState } from 'react';
+// import { Link, useNavigate } from 'react-router-dom';
+// import { Mail, Lock, Swords, ArrowRight, Sparkles } from 'lucide-react';
+// import { Logo } from '../components/common/Logo';
+// import { Button } from '../components/common/Button';
+// import { useApp } from '../context/AppContext';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Swords, ArrowRight, Sparkles } from 'lucide-react';
+import { Mail, Lock, Sparkles } from 'lucide-react';
 import { Logo } from '../components/common/Logo';
 import { Button } from '../components/common/Button';
-import { useApp } from '../context/AppContext';
+import { loginUser } from '../services/api';
+
 
 export const Login = () => {
   const navigate = useNavigate();
-  const { login, user } = useApp();
+ 
 
   const [formData, setFormData] = useState({
     emailOrUsername: '',
@@ -16,36 +23,81 @@ export const Login = () => {
 
   const [error, setError] = useState('');
 
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   setError('');
+
+  //   if (!formData.emailOrUsername.trim()) {
+  //     setError('Please enter your email or username.');
+  //     return;
+  //   }
+  //   if (!formData.password) {
+  //     setError('Please enter your password.');
+  //     return;
+  //   }
+
+  //   // Mock authentication
+  //   await login({
+  //     emailOrUsername: formData.emailOrUsername.trim(),
+  //     password: formData.password
+  //   });
+
+  //   // Navigate to DASHBOARD as required!
+  //   navigate('/dashboard');
+  // };
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  e.preventDefault();
+  setError('');
 
-    if (!formData.emailOrUsername.trim()) {
-      setError('Please enter your email or username.');
-      return;
-    }
-    if (!formData.password) {
-      setError('Please enter your password.');
-      return;
-    }
+  if (!formData.emailOrUsername.trim()) {
+    setError('Please enter your User ID.');
+    return;
+  }
 
-    // Mock authentication
-    await login({
-      emailOrUsername: formData.emailOrUsername.trim(),
+  if (!formData.password) {
+    setError('Please enter your password.');
+    return;
+  }
+
+  try {
+    const result = await loginUser({
+      userId: formData.emailOrUsername.trim(),
       password: formData.password
     });
 
-    // Navigate to DASHBOARD as required!
-    navigate('/dashboard');
-  };
+    localStorage.setItem('token', result.token);
+    localStorage.setItem('user', JSON.stringify(result.user));
 
-  const handleDemoLogin = async () => {
-    await login({
-      emailOrUsername: user.name || "Adventurer",
-      password: "demopassword"
-    });
     navigate('/dashboard');
-  };
+  } catch (error) {
+    setError(error.message || 'Login failed. Please check your credentials.');
+  }
+};
+
+  // const handleDemoLogin = async () => {
+  //   await login({
+  //     emailOrUsername: user.name || "Adventurer",
+  //     password: "demopassword"
+  //   });
+  //   navigate('/dashboard');
+  // };
+  const handleDemoLogin = async () => {
+  setError('');
+
+  try {
+    const result = await loginUser({
+      userId: 'Adventurer',
+      password: 'demopassword'
+    });
+
+    localStorage.setItem('token', result.token);
+    localStorage.setItem('user', JSON.stringify(result.user));
+
+    navigate('/dashboard');
+  } catch (error) {
+    setError(error.message || 'Demo login failed.');
+  }
+};
 
   return (
     <div className="min-h-screen bg-arena-bg text-light-text flex flex-col justify-center items-center p-4 relative overflow-hidden">

@@ -1,76 +1,108 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { mockApi, INITIAL_USER_STATE } from '../services/mockApi';
-import { SHOP_ITEMS } from '../data/initialItems';
+import {
+  getProfile,
+  updateProfile,
+  getDashboard,
+  getQuests,
+  createQuest as apiCreateQuest,
+  updateQuest as apiUpdateQuest,
+  deleteQuest as apiDeleteQuest,
+  completeQuest as apiCompleteQuest,
+  getHistory,
+  getShopItems,
+  getInventory,
+  buyItem as apiBuyItem,
+  getAchievements,
+unlockAchievement
+} from '../services/api';
 import { INITIAL_ACHIEVEMENTS } from '../data/initialAchievements';
 import { SAMPLE_QUESTS } from '../data/sampleQuests';
 
 const AppContext = createContext(null);
 
+const emptyUser = {
+  name: 'Adventurer',
+  email: '',
+  userId: '',
+  level: 1,
+  xp: 0,
+  xpToNextLevel: 100,
+  totalXp: 0,
+  coins: 0,
+  streak: 0,
+  attributes: {
+    intelligence: 0,
+    strength: 0,
+    vitality: 0,
+    focus: 0
+  },
+  inventory: []
+};
+
+const convertQuest = (quest) => ({
+  ...quest,
+  id: quest._id,
+  rewards: {
+    xp: quest.xpReward || 0,
+    coins: quest.coinReward || 0,
+    attribute: quest.attributeReward?.type || 'Focus',
+    attributeAmount: quest.attributeReward?.amount || 0
+  }
+});
+
 export const AppProvider = ({ children }) => {
-  // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('life_arena_auth') === 'true';
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => !!localStorage.getItem('token')
+  );
 
-  // User state (starts at clean ZERO for new users)
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('life_arena_user');
-    return saved ? JSON.parse(saved) : INITIAL_USER_STATE;
+    const saved = localStorage.getItem('user');
+
+    if (saved) {
+      try {
+        return {
+          ...emptyUser,
+          ...JSON.parse(saved)
+        };
+      } catch {
+        return emptyUser;
+      }
+    }
+
+    return emptyUser;
   });
 
-  // Quests state (starts at empty [] for new users)
-  const [quests, setQuests] = useState(() => {
-    const saved = localStorage.getItem('life_arena_quests');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // History state (starts at empty [] for new users)
-  const [history, setHistory] = useState(() => {
-    const saved = localStorage.getItem('life_arena_history');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // Shop items
-  const [shopItems] = useState(SHOP_ITEMS);
-
-  // Toasts
+  const [quests, setQuests] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [shopItems, setShopItems] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [backendAchievements, setBackendAchievements] = useState([]);
   const [toasts, setToasts] = useState([]);
 
-  // Sync user to storage
-  useEffect(() => {
-    localStorage.setItem('life_arena_user', JSON.stringify(user));
-  }, [user]);
-
-  // Sync quests to storage
-  useEffect(() => {
-    localStorage.setItem('life_arena_quests', JSON.stringify(quests));
-  }, [quests]);
-
-  // Sync history to storage
-  useEffect(() => {
-    localStorage.setItem('life_arena_history', JSON.stringify(history));
-  }, [history]);
-
-  // Sync auth to storage
-  useEffect(() => {
-    localStorage.setItem('life_arena_auth', isAuthenticated ? 'true' : 'false');
-  }, [isAuthenticated]);
-
-  // Add toast helper
   const addToast = (message, type = 'info', title = null) => {
     const id = Date.now() + Math.random();
-    setToasts(prev => [...prev, { id, message, type, title }]);
+
+    setToasts(prev => [
+      ...prev,
+      {
+        id,
+        message,
+        type,
+        title
+      }
+    ]);
+
     setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
+      setToasts(prev => prev.filter(toast => toast.id !== id));
     }, 4000);
   };
 
   const removeToast = (id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
+    setToasts(prev => prev.filter(toast => toast.id !== id));
   };
 
-  // Trigger celebration particles
   const triggerCelebration = () => {
     try {
       confetti({
@@ -79,266 +111,593 @@ export const AppProvider = ({ children }) => {
         origin: { y: 0.7 },
         colors: ['#19D3AE', '#8BE28B', '#F4B942', '#FF7657']
       });
-    } catch {
-      // safe fallback if confetti is unsupported in test env
+    } catch {}
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
+    }
+
+    setIsAuthenticated(true);
+    loadAppData();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+  }, [user]);
+
+  const checkAchievements = async (currentQuests, currentProfile) => {
+  try {
+    const completedCount = currentQuests.filter(
+      quest => quest.status === 'completed'
+    ).length;
+
+    const achievementsToUnlock = [];
+
+    if (completedCount >= 1) {
+      achievementsToUnlock.push('first_quest');
+    }
+
+    if (completedCount >= 10) {
+      achievementsToUnlock.push('quest_master');
+    }
+
+    if ((currentProfile?.level ?? 1) >= 5) {
+      achievementsToUnlock.push('level_up');
+    }
+
+    if ((currentProfile?.coins ?? 0) >= 500) {
+      achievementsToUnlock.push('rich_arena');
+    }
+
+    for (const achievementId of achievementsToUnlock) {
+      const alreadyUnlocked = backendAchievements.some(
+        item => item.achievementId === achievementId
+      );
+
+      if (!alreadyUnlocked) {
+        try {
+          await unlockAchievement(achievementId);
+        } catch (error) {
+          console.error(
+            `Failed to unlock ${achievementId}:`,
+            error
+          );
+        }
+      }
+    }
+
+    const achievementsData = await getAchievements();
+
+    setBackendAchievements(
+      achievementsData?.unlocked || []
+    );
+  } catch (error) {
+    console.error('Achievement check failed:', error);
+  }
+};
+
+  const loadAppData = async () => {
+    try {
+      const [
+        profileData,
+        dashboardData,
+        questsData,
+        historyData,
+        shopData,
+        inventoryData,
+        achievementsData
+      ] = await Promise.all([
+        getProfile(),
+        getDashboard(),
+        getQuests(),
+        getHistory(),
+        getShopItems(),
+        getInventory(),
+        getAchievements()
+      ]);
+
+      const profile = profileData;
+
+      // setUser({
+      //   ...emptyUser,
+      //   ...JSON.parse(localStorage.getItem('user') || '{}'),
+      //   userId: JSON.parse(localStorage.getItem('user') || '{}').userId || '',
+      //   name: profile.name || 'Adventurer',
+      //   level: profile.level || 1,
+      //   xp: profile.xp || 0,
+      //   coins: profile.coins || 0,
+      //   attributes: {
+      //     intelligence: profile.attributes?.intelligence || 0,
+      //     strength: profile.attributes?.strength || 0,
+      //     vitality: profile.attributes?.vitality || 0,
+      //     focus: profile.attributes?.focus || 0
+      //   }
+      // });
+      const savedUser = JSON.parse(
+  localStorage.getItem('user') || '{}'
+);
+
+setUser({
+  ...emptyUser,
+  ...savedUser,
+  userId: savedUser.userId || '',
+  name: profile.name || savedUser.name || 'Adventurer',
+  email: savedUser.email || '',
+  level: profile.level || 1,
+  xp: profile.xp || 0,
+ xpToNextLevel: profile.xpToNextLevel || 100,
+totalXp: profile.totalXp || 0,
+streak: profile.streak || 0,
+  
+  attributes: {
+    intelligence: profile.attributes?.intelligence || 0,
+    strength: profile.attributes?.strength || 0,
+    vitality: profile.attributes?.vitality || 0,
+    focus: profile.attributes?.focus || 0
+  }
+});
+
+      //setQuests((questsData || []).map(convertQuest));
+     // const formattedQuests = (questsData || []).map(convertQuest);
+
+// setQuests(formattedQuests);
+
+// setShopItems(shopData || []);
+// setInventory(inventoryData?.purchasedItems || []);
+// setBackendAchievements(achievementsData?.unlocked || []);
+const formattedQuests = (questsData || []).map(convertQuest);
+
+setQuests(formattedQuests);
+
+setShopItems(shopData || []);
+setInventory(inventoryData?.purchasedItems || []);
+
+const unlockedAchievements = achievementsData?.unlocked || [];
+
+setBackendAchievements(unlockedAchievements);
+
+await checkAchievements(
+  formattedQuests,
+  profile
+);
+      //setHistory(historyData || []);
+      setHistory(
+  (historyData || []).map(item => ({
+    ...item,
+    id: item._id,
+    timestamp: item.createdAt
+  }))
+);
+      setShopItems(shopData || []);
+      setInventory(inventoryData?.purchasedItems || []);
+      setBackendAchievements(achievementsData?.unlocked || []);
+    } catch (error) {
+      console.error('Failed to load application data:', error);
+
+      if (
+        error.message?.includes('token') ||
+        error.message?.includes('expired') ||
+        error.message?.includes('Invalid')
+      ) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setIsAuthenticated(false);
+      }
     }
   };
 
-  // Auth actions
-  const login = async (credentials) => {
-    // If username is provided, update the profile name if it is currently the default
-    if (credentials?.emailOrUsername && user.name === "Adventurer") {
-      setUser(prev => ({
-        ...prev,
-        name: credentials.emailOrUsername.includes('@')
-          ? credentials.emailOrUsername.split('@')[0]
-          : credentials.emailOrUsername
-      }));
-    }
+  const login = async () => {
     setIsAuthenticated(true);
-    addToast("Welcome back to the Arena, Adventurer!", "success", "Login Successful");
+    await loadAppData();
+
+    addToast(
+      'Welcome back to the Arena, Adventurer!',
+      'success',
+      'Login Successful'
+    );
+
     return true;
   };
 
-  const signup = async (userData) => {
-    // Create new account starting at ZERO
-    const newUser = {
-      ...INITIAL_USER_STATE,
-      name: userData.username || "Adventurer",
-      email: userData.email || "adventurer@lifearena.io"
-    };
-    setUser(newUser);
-    // Note: Do NOT set isAuthenticated to true here, as the prompt specifies
-    // that signup should show a success message and then redirect to login!
+  const signup = async () => {
     return true;
   };
 
   const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
     setIsAuthenticated(false);
-    addToast("Safely exited the Arena. Rest well, hero.", "info", "Logged Out");
+    setUser(emptyUser);
+    setQuests([]);
+    setHistory([]);
+    setInventory([]);
+
+    addToast(
+      'Safely exited the Arena. Rest well, hero.',
+      'info',
+      'Logged Out'
+    );
   };
 
-  // User Profile actions
-  const updateUserProfile = (updates) => {
-    setUser(prev => ({ ...prev, ...updates }));
-    addToast("Character profile updated successfully!", "success", "Profile Saved");
-  };
+  const updateUserProfile = async (updates) => {
+    try {
+      const updatedProfile = await updateProfile({
+        name: updates.name
+      });
 
-  // Quest Actions
-  const createQuest = (questData) => {
-    const newQuest = {
-      id: `quest-${Date.now()}`,
-      title: questData.title.trim(),
-      description: questData.description.trim(),
-      category: questData.category || "Personal",
-      difficulty: questData.difficulty || "Medium",
-      estimatedTime: questData.estimatedTime || "30 min",
-      rewards: {
-        xp: Number(questData.rewards?.xp) || 30,
-        coins: Number(questData.rewards?.coins) || 15,
-        attribute: questData.rewards?.attribute || "Focus",
-        attributeAmount: Number(questData.rewards?.attributeAmount) || 3
-      },
-      status: "active",
-      createdAt: new Date().toISOString()
-    };
-
-    setQuests(prev => [newQuest, ...prev]);
-    addToast(`Quest "${newQuest.title}" forged!`, "success", "Quest Created");
-    return newQuest;
-  };
-
-  const updateQuest = (id, questData) => {
-    setQuests(prev => prev.map(q => {
-      if (q.id === id) {
-        return {
-          ...q,
-          ...questData,
-          updatedAt: new Date().toISOString()
-        };
-      }
-      return q;
-    }));
-    addToast("Quest modifications saved.", "info", "Quest Updated");
-  };
-
-  const deleteQuest = (id) => {
-    const questToDelete = quests.find(q => q.id === id);
-    setQuests(prev => prev.filter(q => q.id !== id));
-    addToast(`Quest "${questToDelete?.title || 'Quest'}" removed.`, "warning", "Quest Deleted");
-  };
-
-  const completeQuest = (id) => {
-    const quest = quests.find(q => q.id === id);
-    if (!quest || quest.status === "completed") return;
-
-    // 1. Update quest status
-    setQuests(prev => prev.map(q => {
-      if (q.id === id) {
-        return { ...q, status: "completed", completedAt: new Date().toISOString() };
-      }
-      return q;
-    }));
-
-    // 2. Compute XP, Coins, and Attribute gains
-    const earnedXp = quest.rewards.xp || 20;
-    const earnedCoins = quest.rewards.coins || 10;
-    const attributeName = (quest.rewards.attribute || 'focus').toLowerCase();
-    const attributeGain = quest.rewards.attributeAmount || 3;
-
-    setUser(prev => {
-      let newXp = prev.xp + earnedXp;
-      let newLevel = prev.level;
-      let newXpToNext = prev.xpToNextLevel;
-      let leveledUp = false;
-
-      // Level up logic (100 XP per base level threshold)
-      while (newXp >= newXpToNext) {
-        newXp -= newXpToNext;
-        newLevel += 1;
-        newXpToNext = Math.round(newXpToNext * 1.35); // escalating threshold
-        leveledUp = true;
-      }
-
-      if (leveledUp) {
-        setTimeout(() => {
-          triggerCelebration();
-          addToast(`You ascended to Level ${newLevel}! Attributes sharpened.`, "achievement", "LEVEL UP!");
-        }, 300);
-      }
-
-      return {
+      setUser(prev => ({
         ...prev,
-        level: newLevel,
-        xp: newXp,
-        xpToNextLevel: newXpToNext,
-        totalXp: (prev.totalXp || 0) + earnedXp,
-        coins: prev.coins + earnedCoins,
-        streak: prev.streak === 0 ? 1 : prev.streak, // start streak on first completed quest
-        attributes: {
-          ...prev.attributes,
-          [attributeName]: (prev.attributes[attributeName] || 0) + attributeGain
+        name: updatedProfile.name
+      }));
+
+      addToast(
+        'Character profile updated successfully!',
+        'success',
+        'Profile Saved'
+      );
+
+      return updatedProfile;
+    } catch (error) {
+      addToast(
+        error.message || 'Failed to update profile',
+        'error',
+        'Profile Update Failed'
+      );
+
+      throw error;
+    }
+  };
+
+  const createQuest = async (questData) => {
+    try {
+      const createdQuest = await apiCreateQuest({
+        title: questData.title.trim(),
+        description: questData.description?.trim() || '',
+        category: questData.category || 'Personal',
+        difficulty: questData.difficulty || 'Medium',
+        estimatedTime: questData.estimatedTime || '30 min',
+        xpReward: Number(questData.rewards?.xp) || 30,
+        coinReward: Number(questData.rewards?.coins) || 15,
+        attributeReward: {
+          type: questData.rewards?.attribute || 'Focus',
+          amount: Number(questData.rewards?.attributeAmount) || 3
         }
-      };
-    });
+      });
 
-    // 3. Log to History
-    const historyEntry = {
-      id: `act-${Date.now()}`,
-      type: "quest_completed",
-      questId: quest.id,
-      title: quest.title,
-      category: quest.category,
-      xpEarned: earnedXp,
-      coinsEarned: earnedCoins,
-      attributeEarned: quest.rewards.attribute,
-      attributeAmount: attributeGain,
-      timestamp: new Date().toISOString()
-    };
-    setHistory(prev => [historyEntry, ...prev]);
+      const formattedQuest = convertQuest(createdQuest);
 
-    // Micro-celebration
-    triggerCelebration();
-    addToast(`+${earnedXp} XP, +${earnedCoins} Coins, +${attributeGain} ${quest.rewards.attribute}!`, "success", "Quest Conquered!");
+      setQuests(prev => [formattedQuest, ...prev]);
+
+      addToast(
+        `Quest "${formattedQuest.title}" forged!`,
+        'success',
+        'Quest Created'
+      );
+
+      return formattedQuest;
+    } catch (error) {
+      addToast(
+        error.message || 'Failed to create quest',
+        'error',
+        'Quest Creation Failed'
+      );
+
+      throw error;
+    }
   };
 
-  // Shop Actions
-  const buyItem = (item) => {
-    // Check if already owned
-    if (user.inventory?.includes(item.id)) {
-      addToast(`You already own the ${item.name}!`, "info", "Already Owned");
-      return false;
+  const updateQuest = async (id, questData) => {
+    try {
+      const updatedQuest = await apiUpdateQuest(id, {
+        title: questData.title,
+        description: questData.description,
+        category: questData.category,
+        difficulty: questData.difficulty,
+        estimatedTime: questData.estimatedTime,
+        xpReward: Number(questData.rewards?.xp) || 0,
+        coinReward: Number(questData.rewards?.coins) || 0,
+        attributeReward: {
+          type: questData.rewards?.attribute || 'Focus',
+          amount: Number(questData.rewards?.attributeAmount) || 0
+        }
+      });
+
+      const formattedQuest = convertQuest(updatedQuest);
+
+      setQuests(prev =>
+        prev.map(quest =>
+          quest.id === id ? formattedQuest : quest
+        )
+      );
+
+      addToast(
+        'Quest modifications saved.',
+        'info',
+        'Quest Updated'
+      );
+
+      return formattedQuest;
+    } catch (error) {
+      addToast(
+        error.message || 'Failed to update quest',
+        'error',
+        'Quest Update Failed'
+      );
+
+      throw error;
     }
-
-    // Check balance
-    if (user.coins < item.price) {
-      const needed = item.price - user.coins;
-      addToast(`Insufficient coins! Complete quests to earn ${needed} more coins.`, "error", "Purchase Failed");
-      return false;
-    }
-
-    // Deduct coins & add to inventory
-    setUser(prev => ({
-      ...prev,
-      coins: prev.coins - item.price,
-      inventory: [...(prev.inventory || []), item.id],
-      equippedTheme: item.category === "Themes" ? item.id : prev.equippedTheme,
-      equippedBadge: item.category === "Badges" ? item.name : prev.equippedBadge
-    }));
-
-    // Log to History
-    const historyEntry = {
-      id: `act-${Date.now()}`,
-      type: "shop_purchase",
-      itemId: item.id,
-      title: `Acquired: ${item.name}`,
-      category: item.category,
-      coinsSpent: item.price,
-      timestamp: new Date().toISOString()
-    };
-    setHistory(prev => [historyEntry, ...prev]);
-
-    triggerCelebration();
-    addToast(`Acquired ${item.name}! Added to your character inventory.`, "achievement", "Relic Unlocked!");
-    return true;
   };
 
-  // Dynamic Achievements calculation
-  const achievements = INITIAL_ACHIEVEMENTS.map(ach => {
-    let currentVal = 0;
-    const completedCount = quests.filter(q => q.status === "completed").length;
-    
-    switch (ach.progressKey) {
-      case "completedQuestsCount":
-        currentVal = completedCount;
-        break;
-      case "streak":
-        currentVal = user.streak || 0;
-        break;
-      case "intelligence":
-        currentVal = user.attributes.intelligence || 0;
-        break;
-      case "strength":
-        currentVal = user.attributes.strength || 0;
-        break;
-      case "focus":
-        currentVal = user.attributes.focus || 0;
-        break;
-      case "vitality":
-        currentVal = user.attributes.vitality || 0;
-        break;
-      case "totalXp":
-        currentVal = user.totalXp || 0;
-        break;
-      case "purchasedItemsCount":
-        currentVal = user.inventory?.length || 0;
-        break;
-      default:
-        currentVal = 0;
+  const deleteQuest = async (id) => {
+    try {
+      const questToDelete = quests.find(quest => quest.id === id);
+
+      await apiDeleteQuest(id);
+
+      setQuests(prev =>
+        prev.filter(quest => quest.id !== id)
+      );
+
+      addToast(
+        `Quest "${questToDelete?.title || 'Quest'}" removed.`,
+        'warning',
+        'Quest Deleted'
+      );
+    } catch (error) {
+      addToast(
+        error.message || 'Failed to delete quest',
+        'error',
+        'Quest Delete Failed'
+      );
+
+      throw error;
+    }
+  };
+
+  const completeQuest = async (id) => {
+    const quest = quests.find(item => item.id === id);
+
+    if (!quest || quest.status === 'completed') {
+      return;
     }
 
-    const isUnlocked = currentVal >= ach.target;
+    try {
+      const result = await apiCompleteQuest(id);
+
+      const updatedQuest = convertQuest(result.quest);
+
+      setQuests(prev =>
+        prev.map(item =>
+          item.id === id ? updatedQuest : item
+        )
+      );
+
+      // if (result.profile) {
+      //   setUser(prev => ({
+      //     ...prev,
+      //     level: result.profile.level || prev.level,
+      //     xp: result.profile.xp || 0,
+      //     coins: result.profile.coins || 0,
+      //     attributes: {
+      //       intelligence:
+      //         result.profile.attributes?.intelligence || 0,
+      //       strength:
+      //         result.profile.attributes?.strength || 0,
+      //       vitality:
+      //         result.profile.attributes?.vitality || 0,
+      //       focus:
+      //         result.profile.attributes?.focus || 0
+      //     }
+      //   }));
+      // }
+      if (result.profile) {
+  setUser(prev => ({
+    ...prev,
+    level: result.profile.level ?? 1,
+    xp: result.profile.xp ?? 0,
+    xpToNextLevel: result.profile.xpToNextLevel ?? 100,
+    totalXp: result.profile.totalXp ?? 0,
+    coins: result.profile.coins ?? 0,
+    streak: result.profile.streak ?? 0,
+    attributes: {
+      intelligence:
+        result.profile.attributes?.intelligence ?? 0,
+      strength:
+        result.profile.attributes?.strength ?? 0,
+      vitality:
+        result.profile.attributes?.vitality ?? 0,
+      focus:
+        result.profile.attributes?.focus ?? 0
+    }
+  }));
+}
+// Check and unlock achievements
+try {
+  const completedQuestsCount =
+    quests.filter(item => item.status === 'completed').length + 1;
+
+  const achievementsToUnlock = [];
+
+  if (completedQuestsCount >= 1) {
+    achievementsToUnlock.push('first_quest');
+  }
+
+  if (completedQuestsCount >= 10) {
+    achievementsToUnlock.push('quest_master');
+  }
+
+  if ((result.profile?.level ?? 1) >= 5) {
+    achievementsToUnlock.push('level_up');
+  }
+
+  if ((result.profile?.coins ?? 0) >= 500) {
+    achievementsToUnlock.push('rich_arena');
+  }
+
+  for (const achievementId of achievementsToUnlock) {
+    if (
+      !backendAchievements.some(
+        item => item.achievementId === achievementId
+      )
+    ) {
+      try {
+        await unlockAchievement(achievementId);
+      } catch (error) {
+        // Ignore already-unlocked achievements
+      }
+    }
+  }
+
+  const achievementsData = await getAchievements();
+
+  setBackendAchievements(
+    achievementsData?.unlocked || []
+  );
+} catch (error) {
+  console.error(
+    'Achievement check failed:',
+    error
+  );
+}
+      
+
+      const newHistory = await getHistory();
+
+setHistory(
+  (newHistory || []).map(item => ({
+    ...item,
+    id: item._id,
+    timestamp: item.createdAt
+  }))
+);
+
+      triggerCelebration();
+
+      addToast(
+        `+${quest.rewards.xp} XP, +${quest.rewards.coins} Coins, +${quest.rewards.attributeAmount} ${quest.rewards.attribute}!`,
+        'success',
+        'Quest Conquered!'
+      );
+
+      return result;
+    } catch (error) {
+      addToast(
+        error.message || 'Failed to complete quest',
+        'error',
+        'Quest Completion Failed'
+      );
+
+      throw error;
+    }
+  };
+
+  const buyItem = async (item) => {
+    try {
+      const itemId = item.itemId || item.id;
+
+      const result = await apiBuyItem(itemId);
+
+      setUser(prev => ({
+        ...prev,
+        coins: result.coins
+      }));
+
+      setInventory(result.inventory?.purchasedItems || []);
+
+      const newHistory = await getHistory();
+      setHistory(newHistory || []);
+
+      triggerCelebration();
+
+      addToast(
+        `Acquired ${item.name}! Added to your character inventory.`,
+        'achievement',
+        'Relic Unlocked!'
+      );
+
+      return true;
+    } catch (error) {
+      addToast(
+        error.message || 'Purchase failed',
+        'error',
+        'Purchase Failed'
+      );
+
+      return false;
+    }
+  };
+
+  const achievements = INITIAL_ACHIEVEMENTS.map(achievement => {
+    const backendAchievement = backendAchievements.find(
+      item => item.achievementId === achievement.id
+    );
+
     return {
-      ...ach,
-      current: currentVal,
-      isUnlocked,
-      progressPercent: Math.min(100, Math.round((currentVal / ach.target) * 100))
+      ...achievement,
+      isUnlocked: !!backendAchievement,
+      current: backendAchievement ? achievement.target : 0,
+      progressPercent: backendAchievement ? 100 : 0
     };
   });
 
-  // Convenient helper to load sample demo quests for evaluators/hackathon judges
-  const seedDemoQuests = () => {
-    setQuests(SAMPLE_QUESTS);
-    addToast("4 starter quests loaded into your quest log!", "success", "Demo Quests Loaded");
+  const seedDemoQuests = async () => {
+    try {
+      for (const quest of SAMPLE_QUESTS) {
+        await apiCreateQuest({
+          title: quest.title,
+          description: quest.description || '',
+          category: quest.category || 'Personal',
+          difficulty: quest.difficulty || 'Medium',
+          estimatedTime: quest.estimatedTime || '30 min',
+          xpReward: Number(quest.rewards?.xp) || 30,
+          coinReward: Number(quest.rewards?.coins) || 15,
+          attributeReward: {
+            type: quest.rewards?.attribute || 'Focus',
+            amount: Number(quest.rewards?.attributeAmount) || 3
+          }
+        });
+      }
+
+      const questsData = await getQuests();
+      setQuests((questsData || []).map(convertQuest));
+
+      addToast(
+        'Starter quests loaded into your quest log!',
+        'success',
+        'Demo Quests Loaded'
+      );
+    } catch (error) {
+      addToast(
+        error.message || 'Failed to load demo quests',
+        'error',
+        'Demo Quest Failed'
+      );
+    }
   };
 
-  // Reset all data back to pristine zero
   const resetAllData = () => {
-    setUser(INITIAL_USER_STATE);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
+    setUser(emptyUser);
     setQuests([]);
     setHistory([]);
-    mockApi.clearAll();
-    addToast("All data reset to zero. Fresh start initiated.", "warning", "Reset Complete");
+    setInventory([]);
+    setIsAuthenticated(false);
+
+    addToast(
+      'All local session data reset.',
+      'warning',
+      'Reset Complete'
+    );
   };
 
   return (
@@ -357,13 +716,15 @@ export const AppProvider = ({ children }) => {
         completeQuest,
         history,
         shopItems,
+        inventory,
         buyItem,
         achievements,
         toasts,
         addToast,
         removeToast,
         seedDemoQuests,
-        resetAllData
+        resetAllData,
+        loadAppData
       }}
     >
       {children}
@@ -373,8 +734,10 @@ export const AppProvider = ({ children }) => {
 
 export const useApp = () => {
   const context = useContext(AppContext);
+
   if (!context) {
-    throw new Error("useApp must be used within an AppProvider");
+    throw new Error('useApp must be used within an AppProvider');
   }
+
   return context;
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   User, 
   Shield, 
@@ -29,26 +29,53 @@ export const Profile = () => {
   const [nameInput, setNameInput] = useState(user.name);
   const [titleInput, setTitleInput] = useState(user.title || 'Novice Challenger');
 
+  useEffect(() => {
+  setNameInput(user.name);
+  setTitleInput(user.title || 'Novice Challenger');
+}, [user.name, user.title]);
+
   const handleOpenEdit = () => {
     setNameInput(user.name);
     setTitleInput(user.title || 'Novice Challenger');
     setIsEditModalOpen(true);
   };
 
-  const handleSaveProfile = (e) => {
-    e.preventDefault();
-    if (!nameInput.trim()) return;
+  // const handleSaveProfile = (e) => {
+  //   e.preventDefault();
+  //   if (!nameInput.trim()) return;
 
-    updateUserProfile({
+  //   updateUserProfile({
+  //     name: nameInput.trim(),
+  //     title: titleInput.trim()
+  //   });
+  //   setIsEditModalOpen(false);
+  // };
+  const handleSaveProfile = async (e) => {
+  e.preventDefault();
+
+  if (!nameInput.trim()) return;
+
+  try {
+    await updateUserProfile({
       name: nameInput.trim(),
       title: titleInput.trim()
     });
+
     setIsEditModalOpen(false);
-  };
+  } catch (error) {
+    console.error('Profile update failed:', error);
+  }
+};
 
   // Get owned relics / badges
-  const ownedItems = shopItems.filter(item => user.inventory?.includes(item.id));
-
+  //const ownedItems = shopItems.filter(item => user.inventory?.includes(item.id));
+const ownedItems = shopItems.filter(item =>
+  user.inventory?.some(
+    ownedItem =>
+      ownedItem.itemId === item.itemId ||
+      ownedItem.itemId === item.id
+  )
+);
   // Determine character rank badge
   const getHeroRank = (level) => {
     if (level >= 20) return "Grand Arena Champion";

@@ -70,14 +70,27 @@ export const Quests = () => {
     setIsModalOpen(true);
   };
 
-  const handleModalSubmit = (questData) => {
+  // const handleModalSubmit = (questData) => {
+  //   if (editingQuest) {
+  //     updateQuest(editingQuest.id, questData);
+  //   } else {
+  //     createQuest(questData);
+  //   }
+  //   setIsModalOpen(false);
+  // };
+  const handleModalSubmit = async (questData) => {
+  try {
     if (editingQuest) {
-      updateQuest(editingQuest.id, questData);
+      await updateQuest(editingQuest.id, questData);
     } else {
-      createQuest(questData);
+      await createQuest(questData);
     }
+
     setIsModalOpen(false);
-  };
+  } catch (error) {
+    console.error('Quest operation failed:', error);
+  }
+};
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">

@@ -1,13 +1,21 @@
+// import { signupUser } from "../services/api";
+// import React, { useState } from 'react';
+// import { Link, useNavigate } from 'react-router-dom';
+// import { Swords, CheckCircle2, User, Mail, Lock, Shield, ArrowRight } from 'lucide-react';
+// import { Logo } from '../components/common/Logo';
+// import { Button } from '../components/common/Button';
+// import { useApp } from '../context/AppContext';
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Swords, CheckCircle2, User, Mail, Lock, Shield, ArrowRight } from 'lucide-react';
+import { CheckCircle2, User, Mail, Lock, Shield, ArrowRight } from 'lucide-react';
 import { Logo } from '../components/common/Logo';
 import { Button } from '../components/common/Button';
-import { useApp } from '../context/AppContext';
+import { signupUser } from '../services/api';
 
 export const Signup = () => {
   const navigate = useNavigate();
-  const { signup } = useApp();
+  
 
   const [formData, setFormData] = useState({
     username: '',
@@ -19,37 +27,74 @@ export const Signup = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   setError('');
+
+  //   if (!formData.username.trim()) {
+  //     setError('Please enter your adventurer name / username.');
+  //     return;
+  //   }
+  //   if (!formData.email.trim()) {
+  //     setError('Please enter a valid email address.');
+  //     return;
+  //   }
+  //   if (formData.password.length < 6) {
+  //     setError('Password must be at least 6 characters long.');
+  //     return;
+  //   }
+  //   if (formData.password !== formData.confirmPassword) {
+  //     setError('Passwords do not match.');
+  //     return;
+  //   }
+
+  //   // Register user in mock state
+  //   await signup({
+  //     username: formData.username.trim(),
+  //     email: formData.email.trim(),
+  //     password: formData.password
+  //   });
+
+  //   // Show account creation success state (DO NOT immediately open dashboard!)
+  //   setSuccess(true);
+  // };
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  e.preventDefault();
+  setError('');
 
-    if (!formData.username.trim()) {
-      setError('Please enter your adventurer name / username.');
-      return;
-    }
-    if (!formData.email.trim()) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      return;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
+  if (!formData.username.trim()) {
+    setError('Please enter your adventurer name / username.');
+    return;
+  }
 
-    // Register user in mock state
-    await signup({
-      username: formData.username.trim(),
+  if (!formData.email.trim()) {
+    setError('Please enter a valid email address.');
+    return;
+  }
+
+  if (formData.password.length < 6) {
+    setError('Password must be at least 6 characters long.');
+    return;
+  }
+
+  if (formData.password !== formData.confirmPassword) {
+    setError('Passwords do not match.');
+    return;
+  }
+
+  try {
+    await signupUser({
+      userId: formData.username.trim(),
+      name: formData.username.trim(),
       email: formData.email.trim(),
       password: formData.password
     });
 
-    // Show account creation success state (DO NOT immediately open dashboard!)
     setSuccess(true);
-  };
+  } catch (error) {
+    setError(error.message || 'Signup failed. Please try again.');
+  }
+};
 
   return (
     <div className="min-h-screen bg-arena-bg text-light-text flex flex-col justify-center items-center p-4 relative overflow-hidden">

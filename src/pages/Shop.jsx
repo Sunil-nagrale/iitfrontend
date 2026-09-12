@@ -16,10 +16,15 @@ export const Shop = () => {
 
   const categories = ["All", "Themes", "Avatars", "Badges", "Items"];
 
+  // const filteredItems = shopItems.filter(item => {
+  //   if (selectedCategory === 'All') return true;
+  //   return item.category === selectedCategory;
+  // });
+
   const filteredItems = shopItems.filter(item => {
-    if (selectedCategory === 'All') return true;
-    return item.category === selectedCategory;
-  });
+  if (selectedCategory === 'All') return true;
+  return !item.category || item.category === selectedCategory;
+});
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -78,16 +83,23 @@ export const Shop = () => {
       {/* Shop Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredItems.map((item) => {
-          const isOwned = user.inventory?.includes(item.id);
+         // const isOwned = user.inventory?.includes(item.id);
+         const isOwned = user.inventory?.some(
+  ownedItem =>
+    ownedItem.itemId === item.itemId ||
+    ownedItem.itemId === item.id
+);
           const canAfford = user.coins >= item.price;
 
           return (
             <ShopCard
-              key={item.id}
+             // key={item.id}
+             key={item.itemId || item.id}
               item={item}
               isOwned={isOwned}
               canAfford={canAfford}
               onBuy={buyItem}
+              //onBuy={() => buyItem(item.itemId || item.id)}
             />
           );
         })}
