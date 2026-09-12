@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #071312;
+    color: #F3F6F4;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Custom dark RPG scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #071312;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #17332D;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #19D3AE;
+  }
+}
+
+@layer utilities {
+  .bg-grid-pattern {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, rgba(25, 211, 174, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(25, 211, 174, 0.04) 1px, transparent 1px);
+  }
+
+  .bg-dots-pattern {
+    background-image: radial-gradient(rgba(25, 211, 174, 0.12) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .glass-panel {
+    background: rgba(13, 31, 28, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(25, 211, 174, 0.14);
+  }
+
+  .glass-panel-hover {
+    transition: all 0.25s ease-in-out;
+  }
+  .glass-panel-hover:hover {
+    border-color: rgba(25, 211, 174, 0.35);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px -3px rgba(25, 211, 174, 0.2);
+  }
+
+  .glass-input {
+    background: rgba(7, 19, 18, 0.8);
+    border: 1px solid rgba(25, 211, 174, 0.2);
+    color: #F3F6F4;
+    transition: all 0.2s ease;
+  }
+  .glass-input:focus {
+    border-color: #19D3AE;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(25, 211, 174, 0.2);
+  }
+
+  .text-gradient-teal {
+    background: linear-gradient(135deg, #19D3AE 0%, #8BE28B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #F4B942 0%, #FCD34D 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .rpg-border {
+    position: relative;
+  }
+  .rpg-border::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(25, 211, 174, 0.4), rgba(244, 185, 66, 0.2), rgba(25, 211, 174, 0.05));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
