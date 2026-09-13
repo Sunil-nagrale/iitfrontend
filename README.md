@@ -134,41 +134,123 @@ All user-specific data is connected to the authenticated user, allowing each pla
 ## 📂 Project Structure
 
 ```text
-Life_Arena/
+iitfrontend/
 │
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── assets/
-│   │   └── App.jsx
-│   └── package.json
+├── dist/
+│   ├── assets/
+│   ├── index-CycuYLVu.js
+│   └── index-YJgfFj3x.css
+│  
 │
-├── backend/
-│   ├── models/
-│   │   ├── User.js
-│   │   ├── Profile.js
-│   │   ├── Quest.js
-│   │   ├── History.js
-│   │   ├── UserInventory.js
-│   │   └── UserAchievement.js
+├── Life_Arena/
 │   │
-│   ├── routes/
-│   │   ├── authRoutes.js
-│   │   ├── profileRoutes.js
-│   │   ├── questRoutes.js
-│   │   ├── historyRoutes.js
-│   │   ├── inventoryRoutes.js
-│   │   ├── achievementRoutes.js
-│   │   └── dashboardRoutes.js
-│   │
-│   ├── MW/
-│   │   └── AuthMW.js
-│   │
-│   ├── index.js
-│   └── package.json
+│   └── backend/                         # BACKEND
+│       │
+│       ├── models/
+│       │   ├── History.js
+│       │   ├── Profile.js
+│       │   ├── Quest.js
+│       │   ├── User.js
+│       │   ├── UserAchievement.js
+│       │   └── UserInventory.js
+│       │
+│       ├── MW/
+│       │   └── authMW.js
+│       │
+│       ├── routes/
+│       │   ├── achievementRoutes.js
+│       │   ├── authRoutes.js
+│       │   ├── dashboardRoutes.js
+│       │   ├── historyRoutes.js
+│       │   ├── inventoryRoutes.js
+│       │   ├── profileRoutes.js
+│       │   └── questRoutes.js
+│       │
+│       ├── node_modules/
+│       │
+│       ├── .env
+│       ├── index.js
+│       ├── package.json
+│       └── package-lock.json
 │
-└── README.md
+│
+├── src/                                  # FRONTEND
+│   │
+│   ├── components/
+│   │   │
+│   │   ├── achievements/
+│   │   │   └── AchievementCard.jsx
+│   │   │
+│   │   ├── common/
+│   │   │   ├── Button.jsx
+│   │   │   ├── Logo.jsx
+│   │   │   ├── Modal.jsx
+│   │   │   ├── ProgressBar.jsx
+│   │   │   └── ToastContainer.jsx
+│   │   │
+│   │   ├── dashboard/
+│   │   │   ├── AttributeCard.jsx
+│   │   │   └── StatCard.jsx
+│   │   │
+│   │   ├── history/
+│   │   │   └── HistoryItem.jsx
+│   │   │
+│   │   ├── layout/
+│   │   │   ├── AppLayout.jsx
+│   │   │   ├── MobileNav.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   └── Topbar.jsx
+│   │   │
+│   │   ├── quests/
+│   │   │   ├── QuestCard.jsx
+│   │   │   └── QuestModal.jsx
+│   │   │
+│   │   └── shop/
+│   │       └── ShopCard.jsx
+│   │
+│   ├── context/
+│   │   └── AppContext.jsx
+│   │
+│   ├── data/
+│   │   ├── initialAchievements.js
+│   │   ├── initialItems.js
+│   │   └── sampleQuests.js
+│   │
+│   ├── pages/
+│   │   ├── Achievements.jsx
+│   │   ├── Dashboard.jsx
+│   │   ├── History.jsx
+│   │   ├── Landing.jsx
+│   │   ├── Login.jsx
+│   │   ├── Profile.jsx
+│   │   ├── Quests.jsx
+│   │   ├── Settings.jsx
+│   │   ├── Shop.jsx
+│   │   └── Signup.jsx
+│   │
+│   ├── services/
+│   │   ├── api.js
+│   │   └── mockApi.js
+│   │
+│   ├── App.css
+│   ├── App.jsx
+│   ├── index.css
+│   └── main.jsx
+│
+│
+├── node_modules/
+├── public/
+│
+├── .gitignore
+├── .oxlintrc.json
+├── README.md
+├── index.html
+├── package.json
+├── package-lock.json
+├── postcss.config.cjs
+├── tailwind.config.js
+├── vercel.json
+└── vite.config.js
 ```
 
 ---
@@ -238,6 +320,7 @@ JWT_SECRET=your_jwt_secret
 ## 🏆Our Hackathon Focus
 
 Life Arena focuses on the core requirements of the challenge: **secure authentication, persistent database storage, CRUD functionality, RPG progression, streaks, attributes, rewards, achievements, and a responsive game-inspired UI.**
+Live Website: https://life-arena.vercel.app/
 
 Rather than building another generic productivity dashboard, Life Arena asks:
 
@@ -248,6 +331,6 @@ Rather than building another generic productivity dashboard, Life Arena asks:
 ##Demo Credentials 
 If you want to explore the website and see how the features work, you can use the demo account below. The demo account already contains sample progress, levels, points, and quests so you can experience the application without starting from zero.
 
-**Demo Username:**  lakshmi@ 123
-**Demo Password:**  lakshmi@ 123
+**Demo Username:**  lakshmi@123
+**Demo Password:**  lakshmi@123
 
