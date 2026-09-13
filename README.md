@@ -244,3 +244,10 @@ Rather than building another generic productivity dashboard, Life Arena asks:
 > **"What if improving your life actually felt like leveling up?"**
 
 ### ⚔️ Build Habits. Earn XP. Level Up Your Life.
+
+##Demo Credentials 
+If you want to explore the website and see how the features work, you can use the demo account below. The demo account already contains sample progress, levels, points, and quests so you can experience the application without starting from zero.
+
+**Demo Username:**  lakshmi@ 123
+**Demo Password:**  lakshmi@ 123
+
